@@ -1,0 +1,22 @@
+# Build artifacts
+*.o
+*.a
+*.bin
+*.img
+*.map
+System.map
+Image
+
+# Tools
+tools/build
+tools/system
+tools/system.bin
+
+# Boot
+boot/boot
+boot/boot.o
+
+# Temporary files
+tmp.s
+tmp_make
+core
