@@ -4,16 +4,16 @@
 # remove them from the CFLAGS defines.
 #
 
-AS86	=as -0 -a
-CC86	=cc -0
-LD86	=ld -0
+AS86	=as86
+LD86	=ld86
 
-AS	=gas
-LD	=gld
+AS	=as --32
+LD	=ld -m elf_i386
 LDFLAGS	=-s -x -M
-CC	=gcc
-CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer -fcombine-regs
-CPP	=gcc -E -nostdinc -Iinclude
+CC	=gcc -m32 -march=i386
+CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer -fno-stack-protector \
+	-fleading-underscore -fno-pic -Wno-return-type
+CPP	=gcc -m32 -E -nostdinc -Iinclude
 
 ARCHIVES=kernel/kernel.o mm/mm.o fs/fs.o
 LIBS	=lib/lib.a
@@ -30,22 +30,21 @@ LIBS	=lib/lib.a
 all:	Image
 
 Image: boot/boot tools/system tools/build
-	tools/build boot/boot tools/system > Image
+	tools/build boot/boot tools/system.bin > Image
 	sync
 
 tools/build: tools/build.c
-	$(CC) $(CFLAGS) \
-	-o tools/build tools/build.c
-	chmem +65000 tools/build
+	gcc -o tools/build tools/build.c
 
 boot/head.o: boot/head.s
 
 tools/system:	boot/head.o init/main.o \
 		$(ARCHIVES) $(LIBS)
-	$(LD) $(LDFLAGS) boot/head.o init/main.o \
+	$(LD) $(LDFLAGS) -Ttext 0 -e startup_32 boot/head.o init/main.o \
 	$(ARCHIVES) \
 	$(LIBS) \
 	-o tools/system > System.map
+	objcopy -O binary -R .note -R .comment tools/system tools/system.bin
 
 kernel/kernel.o:
 	(cd kernel; make)
@@ -60,8 +59,7 @@ lib/lib.a:
 	(cd lib; make)
 
 boot/boot:	boot/boot.s tools/system
-	(echo -n "SYSSIZE = (";ls -l tools/system | grep system \
-		| cut -c25-31 | tr '\012' ' '; echo "+ 15 ) / 16") > tmp.s
+	(echo -n "SYSSIZE = (";wc -c < tools/system.bin | tr -d ' \012'; echo "+ 15 ) / 16") > tmp.s
 	cat boot/boot.s >> tmp.s
 	$(AS86) -o boot/boot.o tmp.s
 	rm -f tmp.s
