@@ -14,10 +14,10 @@
  * won't be any messing with the stack from main(), but we define
  * some others too.
  */
-static inline _syscall0(int,fork)
-static inline _syscall0(int,pause)
-static inline _syscall0(int,setup)
-static inline _syscall0(int,sync)
+_syscall0(int,fork)
+_syscall0(int,pause)
+_syscall0(int,setup)
+_syscall0(int,sync)
 
 #include <linux/tty.h>
 #include <linux/sched.h>
@@ -35,7 +35,7 @@ static inline _syscall0(int,sync)
 
 static char printbuf[1024];
 
-extern int vsprintf();
+extern int vsprintf(char *buf, const char *fmt, va_list args);
 extern void init(void);
 extern void hd_init(void);
 extern long kernel_mktime(struct tm * tm);
