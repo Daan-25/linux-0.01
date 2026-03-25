@@ -6,7 +6,7 @@
  * the page directory.
  */
 .text
-.globl _idt,_gdt,_pg_dir
+.globl _idt,_gdt,_pg_dir,startup_32
 _pg_dir:
 startup_32:
 	movl $0x10,%eax
@@ -14,20 +14,41 @@ startup_32:
 	mov %ax,%es
 	mov %ax,%fs
 	mov %ax,%gs
-	lss _stack_start,%esp
+	mov %ax,%ss
+	movl _stack_start,%esp
+	/* debug: output ESP value */
+	movl %esp,%eax
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	movb $'1',%al
+	outb %al,$0xe9
 	call setup_idt
+	movb $'B',%al		# debug: QEMU debugcon 'B'
+	outb %al,$0xe9
 	call setup_gdt
+	movb $'C',%al		# debug: QEMU debugcon 'C'
+	outb %al,$0xe9
 	movl $0x10,%eax		# reload all the segment registers
 	mov %ax,%ds		# after changing gdt. CS was already
 	mov %ax,%es		# reloaded in 'setup_gdt'
 	mov %ax,%fs
 	mov %ax,%gs
-	lss _stack_start,%esp
+	mov %ax,%ss
+	movl _stack_start,%esp
+	movb $'D',%al		# debug: QEMU debugcon 'D'
+	outb %al,$0xe9
 	xorl %eax,%eax
 1:	incl %eax		# check that A20 really IS enabled
 	movl %eax,0x000000
 	cmpl %eax,0x100000
 	je 1b
+	movb $'E',%al		# debug: QEMU debugcon 'E'
+	outb %al,$0xe9
 	movl %cr0,%eax		# check math chip
 	andl $0x80000011,%eax	# Save PG,ET,PE
 	testl $0x10,%eax
@@ -48,6 +69,10 @@ startup_32:
  *  written by the page tables.
  */
 setup_idt:
+	pushl %eax
+	movb $'2',%al
+	outb %al,$0xe9
+	popl %eax
 	lea ignore_int,%edx
 	movl $0x00080000,%eax
 	movw %dx,%ax		/* selector = 0x0008 = cs */
@@ -61,7 +86,25 @@ rp_sidt:
 	addl $8,%edi
 	dec %ecx
 	jne rp_sidt
+	pushl %eax
+	movb $'3',%al
+	outb %al,$0xe9
+	popl %eax
 	lidt idt_descr
+	movb $'4',%al
+	outb %al,$0xe9
+	/* Debug: dump top of stack (return address) */
+	movl (%esp),%eax
+	/* Output return address byte by byte */
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	shrl $8,%eax
+	outb %al,$0xe9
+	movb $'R',%al
+	outb %al,$0xe9
 	ret
 
 /*
@@ -91,6 +134,8 @@ pg2:		# This is not used yet, but if you
 
 .org 0x4000
 after_page_tables:
+	movb $'F',%al		# debug: QEMU debugcon 'F'
+	outb %al,$0xe9
 	pushl $0		# These are the parameters to main :-)
 	pushl $0
 	pushl $0
@@ -165,7 +210,7 @@ gdt_descr:
 	.word 256*8-1		# so does gdt (not that that's any
 	.long _gdt		# magic number, but it works for me :^)
 
-	.align 3
+	.align 8
 _idt:	.fill 256,8,0		# idt is uninitialized
 
 _gdt:	.quad 0x0000000000000000	/* NULL descriptor */
