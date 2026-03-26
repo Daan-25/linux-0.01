@@ -2,7 +2,7 @@ AR	=ar
 AS	=as --32
 CC	=gcc -m32 -march=i386
 LD	=ld -m elf_i386
-CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer -fno-stack-protector \
+CFLAGS	=-std=gnu89 -Wall -O -fstrength-reduce -fomit-frame-pointer -fno-stack-protector \
 	-fleading-underscore -fno-pic -Wno-return-type \
 	-nostdinc -I../include
 CPP	=gcc -m32 -E -nostdinc -I../include
