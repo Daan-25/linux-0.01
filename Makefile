@@ -64,7 +64,7 @@ lib/lib.a:
 	(cd lib; make)
 
 boot/boot:	boot/boot.s tools/system
-	(echo -n "SYSSIZE = (";wc -c < tools/system.bin | tr -d ' \012'; echo "+ 15 ) / 16") > tmp.s
+	@SIZE=$$(wc -c < tools/system.bin | tr -d ' '); echo "SYSSIZE = $$(( ($$SIZE + 15) / 16 ))" > tmp.s
 	cat boot/boot.s >> tmp.s
 	$(AS86) -o boot/boot.o tmp.s
 	rm -f tmp.s
