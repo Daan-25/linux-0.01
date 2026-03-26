@@ -9,9 +9,10 @@ LD86	=ld86
 
 AS	=as --32
 LD	=ld -m elf_i386
+OBJCOPY	=objcopy
 LDFLAGS	=-s -x -M
 CC	=gcc -m32 -march=i386
-CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer -fno-stack-protector \
+CFLAGS	=-std=gnu89 -Wall -O -fstrength-reduce -fomit-frame-pointer -fno-stack-protector \
 	-fleading-underscore -fno-pic -Wno-return-type
 CPP	=gcc -m32 -E -nostdinc -Iinclude
 
@@ -31,7 +32,10 @@ all:	Image
 
 Image: boot/boot tools/system tools/build
 	tools/build boot/boot tools/system.bin > Image
-	dd if=/dev/zero bs=1 count=$$((1474560 - $$(stat -c%s Image))) >> Image 2>/dev/null
+	@IMGSIZE=$$(wc -c < Image | tr -d ' '); \
+	if [ $$IMGSIZE -lt 1474560 ]; then \
+		dd if=/dev/zero bs=1 count=$$((1474560 - $$IMGSIZE)) >> Image 2>/dev/null; \
+	fi
 	sync
 
 tools/build: tools/build.c
@@ -45,7 +49,7 @@ tools/system:	boot/head.o init/main.o \
 	$(ARCHIVES) \
 	$(LIBS) \
 	-o tools/system > System.map
-	objcopy -O binary tools/system tools/system.bin
+	$(OBJCOPY) -O binary tools/system tools/system.bin
 
 kernel/kernel.o:
 	(cd kernel; make)
