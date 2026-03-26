@@ -31,6 +31,7 @@ all:	Image
 
 Image: boot/boot tools/system tools/build
 	tools/build boot/boot tools/system.bin > Image
+	dd if=/dev/zero bs=1 count=$$((1474560 - $$(stat -c%s Image))) >> Image 2>/dev/null
 	sync
 
 tools/build: tools/build.c
@@ -40,11 +41,11 @@ boot/head.o: boot/head.s
 
 tools/system:	boot/head.o init/main.o \
 		$(ARCHIVES) $(LIBS)
-	$(LD) $(LDFLAGS) -Ttext 0 -e startup_32 boot/head.o init/main.o \
+	$(LD) $(LDFLAGS) -T tools/kernel.ld boot/head.o init/main.o \
 	$(ARCHIVES) \
 	$(LIBS) \
 	-o tools/system > System.map
-	objcopy -O binary -R .note -R .comment tools/system tools/system.bin
+	objcopy -O binary tools/system tools/system.bin
 
 kernel/kernel.o:
 	(cd kernel; make)
