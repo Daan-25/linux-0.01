@@ -157,7 +157,7 @@ void (*do_hd)(void) = NULL;
 
 static int controller_ready(void)
 {
-	int retries=1000;
+	int retries=100000;
 
 	while (--retries && (inb(HD_STATUS)&0xc0)!=0x40);
 	return (retries);
@@ -178,22 +178,19 @@ static void hd_out(unsigned int drive,unsigned int nsect,unsigned int sect,
 		unsigned int head,unsigned int cyl,unsigned int cmd,
 		void (*intr_addr)(void))
 {
-	register int port asm("dx");
-
 	if (drive>1 || head>15)
 		panic("Trying to write bad sector");
 	if (!controller_ready())
 		panic("HD controller not ready");
 	do_hd = intr_addr;
 	outb(_CTL,HD_CMD);
-	port=HD_DATA;
-	outb_p(_WPCOM,++port);
-	outb_p(nsect,++port);
-	outb_p(sect,++port);
-	outb_p(cyl,++port);
-	outb_p(cyl>>8,++port);
-	outb_p(0xA0|(drive<<4)|head,++port);
-	outb(cmd,++port);
+	outb_p(_WPCOM,HD_PRECOMP);
+	outb_p(nsect,HD_NSECTOR);
+	outb_p(sect,HD_SECTOR);
+	outb_p(cyl,HD_LCYL);
+	outb_p(cyl>>8,HD_HCYL);
+	outb_p(0xA0|(drive<<4)|head,HD_CURRENT);
+	outb(cmd,HD_COMMAND);
 }
 
 static int drive_busy(void)
@@ -233,7 +230,7 @@ static void reset_hd(int nr)
 
 void unexpected_hd_interrupt(void)
 {
-	panic("Unexpected HD interrupt\n\r");
+	printk("Unexpected HD interrupt\n\r");
 }
 
 static void bad_rw_intr(void)
@@ -394,10 +391,35 @@ repeat:
 	wait_on_buffer(bh);
 }
 
+static void pci_enable_ide(void)
+{
+	/*
+	 * Enable I/O space for the PIIX IDE controller (PCI 00:01.1).
+	 * QEMU's SeaBIOS may not fully configure the IDE PCI device when
+	 * booting from floppy. We ensure I/O space access is enabled.
+	 * PCI config address: 0x80000000 | (1<<11) | (1<<8) | 0x04
+	 */
+	unsigned short cmd;
+	int i;
+
+	outl(0x80000904, 0xCF8);
+	cmd = inw(0xCFC);
+	if (!(cmd & 1)) {
+		cmd |= 1;	/* Set I/O Space Enable */
+		outl(0x80000904, 0xCF8);
+		outw(cmd, 0xCFC);
+	}
+	/* Select master drive and wait for it to respond */
+	outb(0xA0, 0x1f6);
+	for (i = 0; i < 100000; i++)
+		nop();
+}
+
 void hd_init(void)
 {
 	int i;
 
+	pci_enable_ide();
 	for (i=0 ; i<NR_REQUEST ; i++) {
 		request[i].hd = -1;
 		request[i].next = NULL;
@@ -407,7 +429,7 @@ void hd_init(void)
 		hd[i*5].nr_sects = hd_info[i].head*
 				hd_info[i].sect*hd_info[i].cyl;
 	}
-	set_trap_gate(0x2E,&hd_interrupt);
+	set_intr_gate(0x2E,&hd_interrupt);
 	outb_p(inb_p(0x21)&0xfb,0x21);
 	outb(inb_p(0xA1)&0xbf,0xA1);
 }
