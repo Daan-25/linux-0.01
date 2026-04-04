@@ -22,3 +22,21 @@ __asm__ volatile ("inb %%dx,%%al\n" \
 	"1:":"=a" (_v):"d" (port)); \
 _v; \
 })
+
+#define outw(value,port) \
+__asm__ ("outw %%ax,%%dx"::"a" ((unsigned short)(value)),"d" (port))
+
+#define inw(port) ({ \
+unsigned short _v; \
+__asm__ volatile ("inw %%dx,%%ax":"=a" (_v):"d" (port)); \
+_v; \
+})
+
+#define outl(value,port) \
+__asm__ ("outl %%eax,%%dx"::"a" ((unsigned int)(value)),"d" (port))
+
+#define inl(port) ({ \
+unsigned int _v; \
+__asm__ volatile ("inl %%dx,%%eax":"=a" (_v):"d" (port)); \
+_v; \
+})
