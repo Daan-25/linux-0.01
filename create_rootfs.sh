@@ -22,11 +22,41 @@ echo "Creating disk image: $((TOTAL_SECTORS * 512)) bytes (${TOTAL_SECTORS} sect
 # Create blank disk image
 dd if=/dev/zero of=${ROOTFS} bs=512 count=${TOTAL_SECTORS} 2>/dev/null
 
-# Create partition table with one partition starting at sector 17 (head 1, cyl 0)
+# Create MBR partition table with Python (avoids sfdisk dependency)
 PART_START=${SECTORS}
 PART_SIZE=$((TOTAL_SECTORS - PART_START))
 
-echo "${PART_START},${PART_SIZE},0x81,-" | sfdisk --no-reread ${ROOTFS} 2>/dev/null || true
+python3 -c "
+import struct
+with open('${ROOTFS}', 'r+b') as f:
+    mbr = bytearray(f.read(512))
+    # Partition 1 entry at offset 0x1BE
+    # boot=0x80(active), type=0x81(Minix)
+    # Start CHS: cyl=0, head=1, sect=1
+    # End CHS: cyl=${CYLINDERS}-1, head=${HEADS}-1, sect=${SECTORS}
+    start_lba = ${PART_START}
+    nr_sects = ${PART_SIZE}
+    end_cyl = ${CYLINDERS} - 1
+    end_head = ${HEADS} - 1
+    end_sect = ${SECTORS}
+    entry = struct.pack('<BBBBBBBBII',
+        0x80,           # boot indicator (active)
+        1,              # start head
+        1,              # start sector (bits 0-5) | cyl hi (bits 6-7)
+        0,              # start cylinder low
+        0x81,           # partition type (Minix)
+        end_head,       # end head
+        end_sect | ((end_cyl >> 2) & 0xC0),  # end sector + cyl hi
+        end_cyl & 0xFF, # end cylinder low
+        start_lba,      # LBA start
+        nr_sects)       # LBA size
+    mbr[0x1BE:0x1BE+16] = entry
+    # MBR signature
+    mbr[510] = 0x55
+    mbr[511] = 0xAA
+    f.seek(0)
+    f.write(bytes(mbr))
+"
 
 echo "Partition table created."
 
