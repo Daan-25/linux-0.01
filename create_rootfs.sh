@@ -62,13 +62,13 @@ msg:
     msglen = . - msg
 ASM
 
-as --32 -o /tmp/update.o /tmp/update.s
-ld -m elf_i386 -Ttext 0 -e _start -o /tmp/update.elf /tmp/update.o
-objcopy -O binary /tmp/update.elf /tmp/update.bin
+as --32 --noexecstack -o /tmp/update.o /tmp/update.s
+ld -m elf_i386 -Ttext 0 -e _start --nmagic -o /tmp/update.elf /tmp/update.o
+objcopy -j .text -O binary /tmp/update.elf /tmp/update.bin
 
-as --32 -o /tmp/sh.o /tmp/sh.s
-ld -m elf_i386 -Ttext 0 -e _start -o /tmp/sh.elf /tmp/sh.o
-objcopy -O binary /tmp/sh.elf /tmp/sh.bin
+as --32 --noexecstack -o /tmp/sh.o /tmp/sh.s
+ld -m elf_i386 -Ttext 0 -e _start --nmagic -o /tmp/sh.elf /tmp/sh.o
+objcopy -j .text -O binary /tmp/sh.elf /tmp/sh.bin
 
 echo "Userspace binaries created."
 
